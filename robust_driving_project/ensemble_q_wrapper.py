@@ -1,61 +1,56 @@
 import numpy as np
 import torch
-import torch.nn as nn
-from typing import List, Tuple
-from stable_baselines3.sac.policies import SACPolicy
-
-class EnsembleQNetworks:
-    def __init__(self, state_dim: int, action_dim: int, ensemble_size: int = 5):
-        self.ensemble_size = ensemble_size
-        self.networks = []
-        
-        for _ in range(ensemble_size):
-            net = nn.Sequential(
-                nn.Linear(state_dim + action_dim, 256),
-                nn.ReLU(),
-                nn.Linear(256, 256),
-                nn.ReLU(),
-                nn.Linear(256, 1)
-            )
-            self.networks.append(net)
-    
-    def get_uncertainty(self, state: np.ndarray, action: np.ndarray) -> float:
-        q_values = []
-        
-        # Handle vectorized environment observations (remove batch dimension if present)
-        if len(state.shape) == 3:
-            state = state[0]  # Take the first (and only) environment
-        if len(action.shape) == 2:
-            action = action[0]  # Take the first (and only) action
-        
-        # Ensure both tensors have the same number of dimensions
-        state_tensor = torch.FloatTensor(state)
-        action_tensor = torch.FloatTensor(action)
-        
-        # If dimensions don't match, reshape action to match state dimensions
-        if len(state_tensor.shape) != len(action_tensor.shape):
-            if len(state_tensor.shape) > len(action_tensor.shape):
-                action_tensor = action_tensor.view(1, -1)
-            else:
-                state_tensor = state_tensor.view(1, -1)
-        
-        state_action = torch.cat([state_tensor, action_tensor], dim=-1)
-        
-        for net in self.networks:
-            q_values.append(net(state_action).detach().numpy())
-            
-        return np.var(q_values)
 
 class EnsembleWrapper:
-    def __init__(self, policy: SACPolicy, uncertainty_threshold: float = 0.5):
+    def __init__(self, policy, uncertainty_threshold=0.2):
         self.policy = policy
-        self.uncertainty_threshold = uncertainty_threshold
-        self.ensemble = EnsembleQNetworks(
-            state_dim=policy.observation_space.shape[0],
-            action_dim=policy.action_space.shape[0]
-        )
-    
-    def should_use_fallback(self, state: np.ndarray) -> Tuple[bool, float]:
-        action = self.policy.predict(state, deterministic=True)[0]
-        uncertainty = self.ensemble.get_uncertainty(state, action)
-        return uncertainty > self.uncertainty_threshold, uncertainty
+        self.threshold = uncertainty_threshold
+
+    def predict_q_values(self, obs):
+        # Convert observation to tensor and handle batch dimension
+        if len(obs.shape) == 3:
+            obs = obs[0]
+        obs_tensor = torch.FloatTensor(obs).unsqueeze(0)
+        
+        # Get actions from policy
+        with torch.no_grad():
+            # SAC's actor returns a tuple (actions, log_prob)
+            action = self.policy.actor(obs_tensor)
+            if isinstance(action, tuple):
+                action = action[0]
+            
+            # Concatenate observation and action for critic input
+            critic_input = torch.cat([obs_tensor, action], dim=1)
+            
+            # Get Q-values from both critics
+            q1 = self.policy.critic.qf0(critic_input)
+            q2 = self.policy.critic.qf1(critic_input)
+            
+            # Convert to numpy and remove batch dimension
+            q1 = q1.detach().numpy().squeeze()
+            q2 = q2.detach().numpy().squeeze()
+        
+        # Create ensemble predictions
+        q_values = [q1, q2]
+        
+        # Add noisy predictions to simulate larger ensemble
+        for _ in range(3):
+            noise = np.random.normal(0, 0.05, q1.shape)
+            noisy_q = (q1 + q2) / 2 + noise
+            q_values.append(noisy_q)
+        
+        return q_values
+
+    def compute_uncertainty(self, q_values):
+        # Compute standard deviation across ensemble predictions
+        q_values = np.array(q_values)
+        return np.std(q_values, axis=0).mean()
+
+    def should_use_fallback(self, obs):
+        try:
+            q_values = self.predict_q_values(obs)
+            uncertainty = self.compute_uncertainty(q_values)
+            return uncertainty > self.threshold, uncertainty
+        except Exception as e:
+            print(f"[EnsembleWrapper Error]: {e}")
+            return True, 1.0  # default to fallback
