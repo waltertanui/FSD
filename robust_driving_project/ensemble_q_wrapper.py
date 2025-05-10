@@ -7,39 +7,35 @@ class EnsembleWrapper:
         self.threshold = uncertainty_threshold
 
     def predict_q_values(self, obs):
-        # Convert observation to tensor and handle batch dimension
+        # Handle nested dimensions from DummyVecEnv
         if len(obs.shape) == 3:
-            obs = obs[0]
-        obs_tensor = torch.FloatTensor(obs).unsqueeze(0)
+            obs = obs.reshape(obs.shape[0], -1)  # Flatten to 2D
+        
+        # Convert observation to tensor
+        obs_tensor = torch.FloatTensor(obs)
         
         # Get actions from policy
         with torch.no_grad():
-            # SAC's actor returns a tuple (actions, log_prob)
-            action = self.policy.actor(obs_tensor)
-            if isinstance(action, tuple):
-                action = action[0]
+            actions = self.policy.actor(obs_tensor) # Correctly assign single output
             
-            # Concatenate observation and action for critic input
-            critic_input = torch.cat([obs_tensor, action], dim=1)
+            # Concatenate observations and actions for critic input
+            critic_input = torch.cat([obs_tensor, actions], dim=1)
             
             # Get Q-values from both critics
-            q1 = self.policy.critic.qf0(critic_input)
-            q2 = self.policy.critic.qf1(critic_input)
+            q1 = self.policy.critic.q_networks[0](critic_input)
+            q2 = self.policy.critic.q_networks[1](critic_input)
             
-            # Convert to numpy and remove batch dimension
-            q1 = q1.detach().numpy().squeeze()
-            q2 = q2.detach().numpy().squeeze()
+            # Convert to numpy
+            q1 = q1.detach().numpy()
+            q2 = q2.detach().numpy()
         
-        # Create ensemble predictions
+        # Create ensemble predictions with noise
         q_values = [q1, q2]
-        
-        # Add noisy predictions to simulate larger ensemble
         for _ in range(3):
             noise = np.random.normal(0, 0.05, q1.shape)
-            noisy_q = (q1 + q2) / 2 + noise
-            q_values.append(noisy_q)
+            q_values.append((q1 + q2) / 2 + noise)
         
-        return q_values
+        return np.concatenate(q_values)
 
     def compute_uncertainty(self, q_values):
         # Compute standard deviation across ensemble predictions
