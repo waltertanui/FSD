@@ -1,8 +1,8 @@
 {
     "success_rate": 60.0,
-    "average_speed": 12.303899507252906,
-    "total_fallbacks": 187,
+    "average_speed": 11.355677605437037,
+    "total_fallbacks": 267,
     "avg_episode_length": 200.0,
     "collision_rate": 0.0,
-    "avg_lane_deviation": 1.4169886112213135
+    "avg_lane_deviation": 1.3929091691970825
 }

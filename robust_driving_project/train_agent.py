@@ -39,19 +39,26 @@ def train():
         "MlpPolicy",
         env,
         verbose=1,
-        learning_rate=3e-4,
-        buffer_size=100000,
-        learning_starts=1000,
-        batch_size=256,
-        train_freq=1,
-        gradient_steps=1,
+        learning_rate=1e-4,  # Reduced learning rate for more stable learning
+        buffer_size=200000,  # Increased buffer size
+        learning_starts=5000,  # More initial random actions for better exploration
+        batch_size=512,  # Larger batch size
+        train_freq=2,  # Train every 2 steps
+        gradient_steps=2,  # More gradient steps per update
         ent_coef='auto',
-        # Remove tensorboard logging to avoid the dependency
+        gamma=0.99,  # Added discount factor
+        tau=0.02,  # Added soft update coefficient
+        policy_kwargs=dict(
+            net_arch=dict(
+                pi=[256, 256, 128],  # Deeper actor network
+                qf=[256, 256, 128]   # Deeper critic network
+            )
+        ),
         tensorboard_log=None
     )
     
-    # Train the agent
-    total_timesteps = 100000
+    # Increased training time
+    total_timesteps = 300000  # Tripled training time
     model.learn(total_timesteps=total_timesteps)
     
     # Save the trained model
