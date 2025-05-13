@@ -6,6 +6,7 @@ from stable_baselines3.common.vec_env import DummyVecEnv
 from stable_baselines3.common.monitor import Monitor
 
 def create_env():
+    env = gym.make('highway-v0', render_mode=None) # Added this line, was missing in the provided snippet
     env.unwrapped.configure({
         'observation': {
             'type': 'Kinematics',
@@ -24,10 +25,10 @@ def create_env():
         'initial_spacing': 2,
         'simulation_frequency': 15,
         'policy_frequency': 5,
-        'reward_speed_range': [20, 30],  # Encourage higher speeds
-        'collision_reward': -5,  # Stronger penalty
-        'right_lane_reward': 0.1,  # Added lane keeping incentive
-        'high_speed_reward': 0.4,  # Increased speed reward weight
+        'reward_speed_range': [22, 30],  # Encourage higher speeds, was [20, 30]
+        'collision_reward': -5,
+        'right_lane_reward': 0.1,
+        'high_speed_reward': 0.5,  # Increased speed reward weight, was 0.4
     })
     env.reset()
     return Monitor(env)

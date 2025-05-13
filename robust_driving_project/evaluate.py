@@ -42,8 +42,8 @@ class Evaluator:
         self.model = SAC.load(model_path)
         
         # THEN create ensemble wrapper
-        # Lower the threshold further to align with paper and ensure fallback triggers
-        self.ensemble_wrapper = EnsembleWrapper(self.model.policy, uncertainty_threshold=0.04) # Was 0.08
+        # Lower the threshold further to ensure fallback triggers based on new avg uncertainty
+        self.ensemble_wrapper = EnsembleWrapper(self.model.policy, uncertainty_threshold=0.02) # Was 0.04
         
         # Rest of initialization
         self.fallback_policy = FallbackPolicy()
