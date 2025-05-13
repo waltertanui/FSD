@@ -7,9 +7,10 @@ import numpy as np
 class FallbackPolicy:
     def __init__(self):
         self.idm_vehicle = IDMVehicle
-        self.desired_speed = 30  # m/s
-        self.safe_distance = 4.0  # meters
-        self.time_headway = 1.5   # seconds
+        self.desired_speed = 25  # Reduced from 30 for better control
+        self.speed_tolerance = 2.0  # Added parameter
+        self.safe_distance = 4.0
+        self.time_headway = 1.5
         
     def predict(self, observation: np.ndarray):
         # Handle DummyVecEnv observation format
