@@ -6,10 +6,23 @@ from fallback_policy import FallbackPolicy
 from typing import Dict, List
 import json
 from stable_baselines3.common.vec_env import DummyVecEnv
+# Add this near the top with other imports
+import os
 import matplotlib.pyplot as plt
+
+# Add this at the top with other imports
+COLOR_PALETTE = {
+    'safe': '#4daf4a',       # Green
+    'threshold': '#984ea3',  # Purple
+    'intervention': '#ff7f00', # Orange
+    'baseline': '#377eb8',    # Blue
+    'failure': '#e41a1c'      # Red
+}
 
 class Evaluator:
     def __init__(self, model_path: str):
+        # Create plots directory if it doesn't exist
+        os.makedirs('plots', exist_ok=True)
         # Define make_env function for environment creation
         def make_env():
             env = gym.make('highway-v0', render_mode=None)
@@ -128,6 +141,7 @@ class Evaluator:
 
         self._summarize_results(n_episodes)
 
+    # Modify the plotting sections in _summarize_results
     def _summarize_results(self, n_episodes: int):
         # Calculate additional metrics
         avg_reward = np.mean(self.metrics['episode_rewards']) if self.metrics['episode_rewards'] else 0.0
@@ -155,25 +169,59 @@ class Evaluator:
         with open('evaluation_results.json', 'w') as f:
             json.dump(summary, f, indent=4)
 
-        # Plot lane deviation
-        plt.figure()
-        plt.plot(self.metrics['lane_deviation_log'])
-        plt.title("Lane Deviation per Episode")
-        plt.xlabel("Episode")
-        plt.ylabel("Avg Deviation (m)")
-        plt.grid(True)
-        plt.savefig("lane_deviation_plot.png")
+        # Plot lane deviation with paper's styling
+        plt.figure(figsize=(8, 4))
+        plt.plot(self.metrics['lane_deviation_log'], color='#2c7bb6', linewidth=2)
+        plt.title("Lane Centering Performance", fontsize=12, fontweight='bold')
+        plt.xlabel("Episode Number", fontsize=10)
+        plt.ylabel("Average Deviation (m)", fontsize=10)
+        plt.grid(True, linestyle='--', alpha=0.7)
+        plt.savefig("plots/lane_deviation.png", dpi=300, bbox_inches='tight')
         plt.close()
 
-        # Plot episode rewards
-        plt.figure()
-        plt.plot(self.metrics['episode_rewards'])
-        plt.title("Episode Rewards Over Time")
-        plt.xlabel("Episode")
-        plt.ylabel("Total Reward")
-        plt.grid(True)
-        plt.savefig("episode_rewards_plot.png")
+        # Plot episode rewards with paper's styling
+        plt.figure(figsize=(8, 4))
+        plt.plot(self.metrics['episode_rewards'], color='#d7191c', linewidth=2)
+        plt.title("Learning Progress", fontsize=12, fontweight='bold')
+        plt.xlabel("Training Episode", fontsize=10)
+        plt.ylabel("Accumulated Reward", fontsize=10)
+        plt.grid(True, linestyle='--', alpha=0.7)
+        plt.savefig("plots/training_progress.png", dpi=300, bbox_inches='tight')
         plt.close()
+
+        # Model uncertainty plot with paper's styling
+        if self.metrics['episode_step_uncertainties']:
+            plt.figure(figsize=(10, 5))
+            sample_episode_idx = 0
+            uncertainties = self.metrics['episode_step_uncertainties'][sample_episode_idx]
+            threshold = self.ensemble_wrapper.threshold
+            
+            plt.plot(uncertainties, color='#4daf4a', linewidth=1.5, label='Model Uncertainty')
+            plt.axhline(y=threshold, color='#984ea3', linestyle='--', linewidth=2, 
+                       label=f'Safety Threshold ({threshold:.2f})')
+            plt.fill_between(range(len(uncertainties)), threshold, uncertainties, 
+                             where=(np.array(uncertainties) > threshold), color='gray', alpha=0.3, step='mid')
+            plt.title("Uncertainty Monitoring and Safety Intervention", fontsize=12, fontweight='bold')
+            plt.xlabel("Time Step", fontsize=10)
+            plt.ylabel("Uncertainty Measure", fontsize=10)
+            plt.legend()
+            plt.grid(True, linestyle='--', alpha=0.7)
+            plt.savefig("plots/uncertainty_monitoring.png", dpi=300, bbox_inches='tight')
+            plt.close()
+
+        # Calculate activation rates per episode
+        activation_rates = [np.mean(ep_fallbacks) * 100 for ep_fallbacks in self.metrics['episode_step_fallbacks']]
+
+        # Fallback activation plot with paper's styling
+        if self.metrics['episode_step_fallbacks']:
+            plt.figure(figsize=(8, 4))
+            plt.bar(range(len(activation_rates)), activation_rates, 
+                    color=['#ff7f00' if rate > 0 else '#377eb8' for rate in activation_rates])
+            plt.title("Safety Intervention Frequency", fontsize=12, fontweight='bold')
+            plt.xlabel("Episode Number", fontsize=10)
+            plt.ylabel("Intervention Rate (%)", fontsize=10)
+            plt.savefig("plots/safety_intervention.png", dpi=300, bbox_inches='tight')
+            plt.close()
 
         # Plot distribution of uncertainties
         plt.figure()
