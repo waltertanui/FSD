@@ -1,11 +1,11 @@
 {
     "success_rate": 100.0,
-    "average_speed": 20.668577793012684,
+    "average_speed": 21.090666273011422,
     "total_fallbacks": 0,
-    "avg_episode_length": 200.0,
+    "avg_episode_length": 400.0,
     "collision_rate": 0.0,
-    "avg_lane_deviation": 1.1320490837097168,
-    "average_reward": 32.84935760498047,
-    "average_uncertainty_rl_active": 0.01537919604291157,
+    "avg_lane_deviation": 1.0957881212234497,
+    "average_reward": 54.45255661010742,
+    "average_uncertainty_rl_active": 0.015536337110646696,
     "fallback_activation_rate_percent": 0.0
 }

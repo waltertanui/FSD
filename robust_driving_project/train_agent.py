@@ -25,10 +25,10 @@ def create_env():
         'initial_spacing': 2,
         'simulation_frequency': 15,
         'policy_frequency': 5,
-        'reward_speed_range': [22, 30],  # Encourage higher speeds, was [20, 30]
+        'reward_speed_range': [22, 30],  
         'collision_reward': -5,
         'right_lane_reward': 0.1,
-        'high_speed_reward': 0.5,  # Increased speed reward weight, was 0.4
+        'high_speed_reward': 0.5, 
     })
     env.reset()
     return Monitor(env)
@@ -40,26 +40,27 @@ def train():
         "MlpPolicy",
         env,
         verbose=1,
-        learning_rate=1e-4,  # Reduced learning rate for more stable learning
-        buffer_size=200000,  # Increased buffer size
-        learning_starts=5000,  # More initial random actions for better exploration
-        batch_size=512,  # Larger batch size
-        train_freq=2,  # Train every 2 steps
-        gradient_steps=2,  # More gradient steps per update
+        learning_rate=1e-4,
+        buffer_size=200000,
+        learning_starts=5000,
+        batch_size=512,
+        train_freq=2,
+        gradient_steps=2,
         ent_coef='auto',
-        gamma=0.99,  # Added discount factor
-        tau=0.02,  # Added soft update coefficient
+        gamma=0.99,
+        tau=0.02,
         policy_kwargs=dict(
             net_arch=dict(
-                pi=[256, 256, 128],  # Deeper actor network
-                qf=[256, 256, 128]   # Deeper critic network
+                pi=[256, 256, 128],
+                qf=[256, 256, 128]
             )
         ),
         tensorboard_log=None
     )
     
-    # Increased training time
-    total_timesteps = 300000  # Tripled training time
+    # Adjust total timesteps for 3500 episodes
+    timesteps_per_episode = 15 * 40  # 15 Hz * 40 seconds
+    total_timesteps = 3500 * timesteps_per_episode
     model.learn(total_timesteps=total_timesteps)
     
     # Save the trained model

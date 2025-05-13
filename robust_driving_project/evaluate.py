@@ -42,8 +42,10 @@ class Evaluator:
                 'vehicles_count': 15,
                 'duration': 40,
                 'initial_spacing': 2,
-                'simulation_frequency': 15,
-                'policy_frequency': 5
+                'simulation_frequency': 20,  # Updated to 20 Hz
+                'policy_frequency': 10,      # Updated to 10 Hz
+                'max_time_step': 800,        # Added max_time_step
+                'duration': 40,              # Set maximum duration to 40 seconds
             })
             env.reset()
             return env
@@ -283,7 +285,57 @@ class Evaluator:
             plt.savefig("fallback_activation_rate_per_episode_plot.png")
             plt.close()
 
+        # Create uncertainty over episodes plot (similar to Fig. 3)
+        plt.figure(figsize=(8, 6))
+        # If we have uncertainty data for multiple episodes
+        if len(self.metrics['episode_step_uncertainties']) > 1:
+            # Calculate average uncertainty per episode
+            avg_uncertainties = [np.mean(ep_uncertainties) for ep_uncertainties in self.metrics['episode_step_uncertainties']]
+            episodes = range(1, len(avg_uncertainties) + 1)
+            
+            plt.plot(episodes, avg_uncertainties, color='blue', linewidth=1.5)
+            plt.xlabel('Episodes', fontsize=12)
+            plt.ylabel('Uncertainty', fontsize=12)
+            plt.title('Average Uncertainty Value Curve during Evaluation')
+            plt.grid(True, linestyle='--', alpha=0.7)
+            plt.tight_layout()
+            plt.savefig("plots/uncertainty_over_episodes.png", dpi=300)
+            plt.close()
+        
+        # Create reward convergence plot (similar to second image)
+        plt.figure(figsize=(8, 6))
+        if len(self.metrics['episode_rewards']) > 1:
+            episodes = range(1, len(self.metrics['episode_rewards']) + 1)
+            rewards = self.metrics['episode_rewards']
+            
+            # Plot the main reward line
+            plt.plot(episodes, rewards, color='blue', linewidth=1.5, label='Rewards')
+            
+            # Add confidence interval if we have enough data points
+            if len(rewards) > 5:
+                window_size = min(5, len(rewards) // 2)
+                rewards_smooth = np.convolve(rewards, np.ones(window_size)/window_size, mode='valid')
+                episodes_smooth = range(window_size, len(rewards) + 1)
+                
+                # Calculate a simple confidence interval
+                std_dev = np.std(rewards) * 0.5
+                plt.fill_between(
+                    episodes_smooth, 
+                    rewards_smooth - std_dev, 
+                    rewards_smooth + std_dev, 
+                    alpha=0.3, 
+                    color='lightblue'
+                )
+            
+            plt.xlabel('Episode', fontsize=12)
+            plt.ylabel('Rewards', fontsize=12)
+            plt.title('Reward Convergence during Evaluation')
+            plt.grid(True, linestyle='--', alpha=0.7)
+            plt.tight_layout()
+            plt.savefig("plots/reward_convergence.png", dpi=300)
+            plt.close()
+
 
 if __name__ == "__main__":
     evaluator = Evaluator("sac_highway_model")
-    evaluator.evaluate(n_episodes=10)
+    evaluator.evaluate(n_episodes=120)
