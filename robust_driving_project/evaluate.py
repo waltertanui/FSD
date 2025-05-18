@@ -191,17 +191,20 @@ class Evaluator:
         plt.savefig("plots/training_progress.png", dpi=300, bbox_inches='tight')
         plt.close()
 
-        # Model uncertainty plot with paper's styling
+        # Model uncertainty plot 
         if self.metrics['episode_step_uncertainties']:
-            plt.figure(figsize=(10, 5))
+            plt.figure(figsize=(8, 6))
             sample_episode_idx = 0
             uncertainties = self.metrics['episode_step_uncertainties'][sample_episode_idx]
             threshold = self.ensemble_wrapper.threshold
             
-            plt.plot(uncertainties, color='#4daf4a', linewidth=1.5, label='Model Uncertainty')
+            # Fix: Use range for x-axis instead of undefined 'episodes'
+            time_steps = range(len(uncertainties))
+            plt.plot(time_steps, uncertainties, color='blue', linewidth=1.5, label='Model Uncertainty')
             plt.axhline(y=threshold, color='#984ea3', linestyle='--', linewidth=2, 
                        label=f'Safety Threshold ({threshold:.2f})')
-            plt.fill_between(range(len(uncertainties)), threshold, uncertainties, 
+            plt.ylim(1, max(uncertainties) + 0.5)  # Start y-axis from 1
+            plt.fill_between(time_steps, threshold, uncertainties, 
                              where=(np.array(uncertainties) > threshold), color='gray', alpha=0.3, step='mid')
             plt.title("Uncertainty Monitoring and Safety Intervention", fontsize=12, fontweight='bold')
             plt.xlabel("Time Step", fontsize=10)
@@ -238,7 +241,7 @@ class Evaluator:
         plt.savefig("uncertainty_distribution_plot.png")
         plt.close()
 
-        # Plot 1: Model Uncertainty & Fallback Switches Over Time (for the first episode as a sample)
+        # Plot 1: Model Uncertainty & Fallback Switches Over Time 
         if self.metrics['episode_step_uncertainties'] and self.metrics['episode_step_fallbacks']:
             plt.figure(figsize=(12, 6))
             
@@ -285,7 +288,25 @@ class Evaluator:
             plt.savefig("fallback_activation_rate_per_episode_plot.png")
             plt.close()
 
-        # Create uncertainty over episodes plot (similar to Fig. 3)
+        # Create average speed plot
+        plt.figure(figsize=(8, 6))
+        if len(self.metrics['average_speed']) > 1:
+            episodes = range(1, len(self.metrics['average_speed']) + 1)
+            speeds = self.metrics['average_speed']
+            
+            plt.plot(episodes, speeds, color='green', linewidth=1.5, label='Average Speed')
+            plt.axhline(y=25.36, color='red', linestyle='--', label='Target Speed (25.36 m/s)')
+            plt.ylim(0, 80)  # Set speed y-axis to 80
+            plt.xlabel('Episode', fontsize=12)
+            plt.ylabel('Average Speed (m/s)', fontsize=12)
+            plt.title('Average Speed during Evaluation')
+            plt.grid(True, linestyle='--', alpha=0.7)
+            plt.legend()
+            plt.tight_layout()
+            plt.savefig("plots/average_speed.png", dpi=300)
+            plt.close()
+
+        # Create uncertainty over episodes plot
         plt.figure(figsize=(8, 6))
         # If we have uncertainty data for multiple episodes
         if len(self.metrics['episode_step_uncertainties']) > 1:
@@ -302,14 +323,14 @@ class Evaluator:
             plt.savefig("plots/uncertainty_over_episodes.png", dpi=300)
             plt.close()
         
-        # Create reward convergence plot (similar to second image)
+        # Create reward convergence plot
         plt.figure(figsize=(8, 6))
         if len(self.metrics['episode_rewards']) > 1:
             episodes = range(1, len(self.metrics['episode_rewards']) + 1)
             rewards = self.metrics['episode_rewards']
             
-            # Plot the main reward line
             plt.plot(episodes, rewards, color='blue', linewidth=1.5, label='Rewards')
+            plt.ylim(0, 500)  # Set reward y-axis to 500
             
             # Add confidence interval if we have enough data points
             if len(rewards) > 5:
@@ -338,4 +359,4 @@ class Evaluator:
 
 if __name__ == "__main__":
     evaluator = Evaluator("sac_highway_model")
-    evaluator.evaluate(n_episodes=120)
+    evaluator.evaluate(n_episodes=3500)
